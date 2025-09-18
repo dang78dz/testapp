@@ -1,0 +1,30 @@
+{
+  "name": "HK12D9",
+  "short_name": "12D9",
+  "description": "Ứng dụng web với thông báo đẩy trên iOS",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e91e63",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "anh.jpg",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "anh.jpg",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "anh.jpg",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

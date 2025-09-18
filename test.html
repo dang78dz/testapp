@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hệ Thống Quản Lý Điểm Hạnh Kiểm</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            overflow-x: hidden;
+        }
+        .modal {
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-content {
+            transform: translateY(-20px);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal.is-active .modal-content {
+            transform: translateY(0);
+        }
+
+        /* Loading Screen Styles */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-out;
+            opacity: 1;
+        }
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: conic-gradient(#0000 10%, #2563eb);
+            -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 8px), #000 0);
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            to { transform: rotate(1turn); }
+        }
+
+        @keyframes marquee-scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .marquee-container {
+            overflow: hidden;
+            width: 100%;
+        }
+        .marquee-text {
+            display: inline-block;
+            white-space: nowrap;
+            padding-left: 100%;
+            animation: marquee-scroll 20s linear infinite;
+        }
+        
+        /* Hiệu ứng mới */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.5);
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+        }
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        .glow-gold { box-shadow: 0 0 15px #FFD700; }
+        .glow-silver { box-shadow: 0 0 15px #C0C0C0; }
+        .glow-bronze { box-shadow: 0 0 15px #CD7F32; }
+
+        #score-table-body tr {
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+        }
+        #score-table-body tr:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            z-index: 10;
+            position: relative;
+        }
+        .header-gradient {
+            background: linear-gradient(to right, #6d28d9, #4f46e5);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <div id="loading-screen">
+        <img src="https://scontent.fhan14-2.fna.fbcdn.net/v/t39.30808-6/516773361_1050695470517997_1621379810582686886_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=a5f93a&_nc_eui2=AeHShGCa597KYjcQn5MxZuNfOEB616399Gc4QHrXrf30Zyx-wgrSV2iXWtzTfv3dnoqYU23ieob81edBoimy1J8a&_nc_ohc=89f1R5eGYbAQ7kNvwH3uweb&_nc_oc=AdmdEjYZ0wp-HapxwEqQ3ae0qr3kcbwLQvMyAG9-Js4BO-zydggzJi8nT7R4kygXgME&_nc_zt=23&_nc_ht=scontent.fhan14-2.fna&_nc_gid=DHpcQZ2LxnZrDCeSdfmQiw&oh=00_AfaFVnuk9uVk2zcNPKFkoW6M43Esukrbo6rXmBmiLWuDQw&oe=68C857E2" alt="Logo" class="w-24 h-24 mb-4 animate-pulse">
+        <h1 class="text-2xl font-bold text-gray-800 mt-2">Hệ Thống Quản Lý Điểm Hạnh Kiểm</h1>
+        <p class="text-gray-600 mt-2">Đang tải dữ liệu...</p>
+        <div class="spinner mt-4"></div>
+    </div>
+
+    <div id="main-content" class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-5xl my-8 transform transition-all duration-300">
+        <header class="flex flex-col md:flex-row items-center justify-between mb-8 pb-4 border-b border-gray-200">
+            <div class="flex items-center mb-4 md:mb-0">
+                <img src="https://scontent.fhan14-2.fna.fbcdn.net/v/t39.30808-6/516773361_1050695470517997_1621379810582686886_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=a5f93a&_nc_eui2=AeHShGCa597KYjcQn5MxZuNfOEB616399Gc4QHrXrf30Zyx-wgrSV2iXWtzTfv3dnoqYU23ieob81edBoimy1J8a&_nc_ohc=89f1R5eGYbAQ7kNvwH3uweb&_nc_oc=AdmdEjYZ0wp-HapxwEqQ3ae0qr3kcbwLQvMyAG9-Js4BO-zydggzJi8nT7R4kygXgME&_nc_zt=23&_nc_ht=scontent.fhan14-2.fna&_nc_gid=DHpcQZ2LxnZrDCeSdfmQiw&oh=00_AfaFVnuk9uVk2zcNPKFkoW6M43Esukrbo6rXmBmiLWuDQw&oe=68C857E2" alt="Logo" class="w-12 h-12 mr-4">
+                <div>
+                    <h1 class="text-4xl font-extrabold text-gray-800">Bảng Hạnh Kiểm</h1>
+                    <p class="mt-2 text-gray-600">Lớp 12D9 - THPT Lâm Nghiệp</p>
+                </div>
+            </div>
+            <div id="login-buttons" class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+                <button id="show-admin-login-modal-btn" class="ripple bg-blue-800 hover:bg-blue-900 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-colors duration-300 transform hover:scale-105">
+                    Đăng nhập Admin
+                </button>
+                <button id="show-teacher-login-modal-btn" class="ripple bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-colors duration-300 transform hover:scale-105">
+                    Đăng nhập Giáo viên
+                </button>
+                <button id="show-login-modal-btn" class="ripple bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-colors duration-300 transform hover:scale-105">
+                    Đăng nhập Tổ trưởng
+                </button>
+            </div>
+            <div id="logout-button-container" class="hidden flex items-center space-x-4">
+                <span id="account-name" class="text-gray-700 font-medium"></span>
+                <button id="logout-btn" class="ripple bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-colors duration-300 transform hover:scale-105">
+                    Đăng xuất
+                </button>
+            </div>
+        </header>
+        
+        <div id="content-wrapper">
+            <div id="ranking-section" class="hidden mb-6 p-4 bg-gray-50 rounded-lg shadow-inner">
+                <h3 class="text-xl font-bold text-center text-gray-800 mb-4">🏆 Bảng Xếp Hạng Tuần 🏆</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h4 class="font-semibold text-center text-indigo-700 mb-2">Thành Viên Xuất Sắc</h4>
+                        <div id="top-students-list" class="space-y-2"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-center text-green-700 mb-2">Tổ Dẫn Đầu</h4>
+                        <div id="top-teams-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="announcement-marquee-container" class="mb-6 hidden bg-indigo-100 border-l-4 border-indigo-500 rounded-md shadow-lg p-4">
+                <p class="font-bold text-indigo-800 text-lg">📢 Thông Báo</p>
+                <div class="marquee-container">
+                    <span id="announcement-marquee" class="marquee-text text-md font-medium text-indigo-900"></span>
+                </div>
+            </div>
+            
+             <div id="team-leader-warning-section" class="hidden mb-6 p-4 bg-red-100 border-l-4 border-red-500 rounded-md shadow-lg">
+                 <p class="font-bold text-red-800">⚠️ Cảnh Báo Tổ Trưởng!</p>
+                 <p id="team-leader-warning-message" class="text-sm text-red-700"></p>
+             </div>
+
+
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <div class="flex items-center space-x-2 mb-4 md:mb-0">
+                    <span class="text-gray-700 font-medium">Xem dữ liệu tuần:</span>
+                    <select id="week-select" class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></select>
+                    <button id="toggle-teacher-dashboard-btn" class="hidden ripple bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-300 transform hover:scale-105">
+                        Kiểm tra
+                    </button>
+                </div>
+                <p id="current-week-info" class="text-lg font-bold text-gray-800"></p>
+            </div>
+
+            <div id="main-actions" class="flex flex-col md:flex-row justify-end space-y-2 md:space-y-0 md:space-x-4 mb-6 hidden">
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="daily-check-confirm" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="daily-check-confirm" class="text-sm font-medium text-gray-700">Đã kiểm tra cuối ngày</label>
+                </div>
+                <button id="show-demerit-modal-btn" class="ripple bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-colors duration-300 transform hover:scale-105">
+                    Tích lỗi
+                </button>
+            </div>
+
+            <div id="today-violations-section" class="my-8 hidden">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b-2 border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-800">Vi phạm trong ngày</h2>
+                    <button id="clear-today-violations-btn" class="hidden ripple bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-300 transform hover:scale-105">
+                        Xóa hết lỗi hôm nay
+                    </button>
+                </div>
+                <div id="today-violations-list" class="space-y-3 max-h-60 overflow-y-auto p-2">
+                    </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl shadow-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100 header-gradient text-white">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Tên học sinh</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Tổ</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Điểm tuần</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Hạnh kiểm tuần</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Hạnh kiểm tháng</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Số lỗi (còn hiệu lực)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="score-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+            
+            <div class="mt-10">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4">Các Lỗi Vi Phạm & Điểm Cộng</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">1. Mất trật tự hoặc làm việc riêng trong giờ học (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">2. Đi học muộn, vào lớp sau giáo viên (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">3. Sử dụng điện thoại trong giờ học (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">4. Không ghi chép bài đầy đủ (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">5. Nói tục chửi bậy (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">6. Vô lễ với giáo viên (-20 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">7. Trốn học, bỏ tiết, nghỉ học không phép (-20 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">8. Trực nhật bẩn, quên trực nhật (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">9. Bị ghi sổ đầu bài (-20 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">10. Tự ý đổi chỗ ngồi (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">11. Không mặc đồng phục, đi dép lê, không đeo thẻ (-10 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">12. Nghỉ học có phép (-5 điểm)</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-gray-900">13. Ngủ trong giờ học (-10 điểm)</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-green-900">0 - 1 - 2: Trừ 5 điểm</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-green-900">3 - 4: Trừ 4 điểm</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-green-900">5 - 6: Cộng 2 điểm</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-green-900">7 - 8: Cộng 5 điểm</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow-sm border border-gray-200 transform hover:scale-105 transition-transform duration-200">
+                        <p class="font-medium text-green-900">9 - 10: Cộng 10 điểm</p>
+                    </div>
+                </div>
+            </div>
+        </div> 
+    </div>
+
+    <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm relative modal-content">
+            <button id="close-login-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Đăng nhập Tổ trưởng</h2>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Tên tài khoản</label>
+                    <input type="text" id="username" name="username" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Ví dụ: to1">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                    <input type="password" id="password" name="password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="123456">
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Đăng nhập
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="teacher-login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm relative modal-content">
+            <button id="close-teacher-login-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Đăng nhập Giáo viên</h2>
+            <form id="teacher-login-form" class="space-y-4">
+                <div>
+                    <label for="teacher-username" class="block text-sm font-medium text-gray-700">Tên tài khoản</label>
+                    <input type="text" id="teacher-username" name="teacher-username" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Ví dụ: giaovien">
+                </div>
+                <div>
+                    <label for="teacher-password" class="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                    <input type="password" id="teacher-password" name="teacher-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="123456">
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    Đăng nhập
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm relative modal-content">
+            <button id="close-admin-login-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Đăng nhập Admin</h2>
+            <form id="admin-login-form" class="space-y-4">
+                <div>
+                    <label for="admin-username" class="block text-sm font-medium text-gray-700">Tên tài khoản</label>
+                    <input type="text" id="admin-username" name="admin-username" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-800 focus:border-blue-800" placeholder="Ví dụ: admin">
+                </div>
+                <div>
+                    <label for="admin-password" class="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                    <input type="password" id="admin-password" name="admin-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-800 focus:border-blue-800" placeholder="123456">
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-800">
+                    Đăng nhập
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="demerit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md relative modal-content">
+            <button id="close-demerit-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 id="demerit-modal-title" class="text-2xl font-bold text-center text-gray-800 mb-6">Tích lỗi Tổ</h2>
+            <form id="demerit-form" class="space-y-4">
+                <div>
+                    <label for="student-select" class="block text-sm font-medium text-gray-700">Chọn học sinh</label>
+                    <select id="student-select" name="student-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"></select>
+                </div>
+                <div>
+                    <label for="violation-select" class="block text-sm font-medium text-gray-700">Chọn lỗi vi phạm</label>
+                    <select id="violation-select" name="violation-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"></select>
+                </div>
+                <div>
+                    <label for="date-select" class="block text-sm font-medium text-gray-700">Ngày vi phạm</label>
+                    <select id="date-select" name="date-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
+                        <option value="today">Hôm nay</option>
+                        <option value="yesterday">Hôm qua</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Tích lỗi
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="violations-detail-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg relative modal-content">
+            <button id="close-violations-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Lịch sử lỗi của <span id="student-name-detail" class="text-blue-600"></span></h2>
+            
+            <div id="violations-list" class="space-y-4 max-h-80 overflow-y-auto"></div>
+            
+            <p id="no-violations-message" class="text-center text-gray-500 hidden mt-4">Học sinh này chưa có lỗi vi phạm nào.</p>
+        </div>
+    </div>
+
+    <div id="teacher-dashboard-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-40 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-5xl relative modal-content overflow-y-auto max-h-screen">
+            <button id="close-teacher-dashboard-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Bảng điều khiển <span id="dashboard-user-type"></span></h2>
+            
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0 md:space-x-4">
+                 <button id="create-new-week-btn" class="ripple w-full md:w-auto flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Tạo tuần mới
+                </button>
+                 <button id="show-teacher-demerit-modal-btn" class="ripple w-full md:w-auto flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Tích lỗi
+                </button>
+                <button id="show-monthly-conduct-modal-btn" class="ripple w-full md:w-auto flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Xét hạnh kiểm tháng
+                </button>
+            </div>
+            
+             <div class="mt-8">
+                 <h3 class="text-xl font-bold text-gray-700 mb-4">Quản lý Tổ trưởng</h3>
+                 <div id="team-leader-management-list" class="space-y-4"></div>
+             </div>
+
+            <div class="mt-8">
+                <h3 class="text-xl font-bold text-gray-700 mb-4">Lỗi vi phạm trong các tuần (chưa xóa)</h3>
+                <div id="weekly-violations-list" class="space-y-6"></div>
+            </div>
+
+            <div class="mt-8">
+                <h3 class="text-xl font-bold text-gray-700 mb-4">Danh sách học sinh</h3>
+                <div class="overflow-x-auto rounded-xl shadow-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tên học sinh</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tổ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tổng lỗi</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-student-list-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="monthly-conduct-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-xl relative modal-content">
+            <button id="close-monthly-conduct-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Xét Hạnh kiểm tháng</h2>
+            <div id="monthly-conduct-list" class="space-y-4 max-h-96 overflow-y-auto"></div>
+            <p id="monthly-conduct-message" class="text-center text-gray-500 mt-4 hidden">Chưa có đủ dữ liệu để xét hạnh kiểm tháng.</p>
+        </div>
+    </div>
+
+    <div id="change-team-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm relative modal-content">
+            <button id="close-change-team-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Đổi tổ cho <span id="student-name-change-team" class="text-purple-600"></span></h2>
+            <form id="change-team-form" class="space-y-4">
+                <input type="hidden" id="student-id-change-team" value="">
+                <div>
+                    <label for="new-team-select" class="block text-sm font-medium text-gray-700">Chọn tổ mới</label>
+                    <select id="new-team-select" name="new-team-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
+                        <option value="to1">Tổ 1</option>
+                        <option value="to2">Tổ 2</option>
+                        <option value="to3">Tổ 3</option>
+                        <option value="to4">Tổ 4</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    Đổi tổ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-violation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm relative modal-content">
+            <button id="close-edit-violation-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Sửa Lỗi Vi Phạm</h2>
+            <form id="edit-violation-form" class="space-y-4">
+                <input type="hidden" id="edit-student-id" value="">
+                <input type="hidden" id="edit-violation-index" value="">
+                <div>
+                    <label for="edit-date" class="block text-sm font-medium text-gray-700">Ngày vi phạm</label>
+                    <input type="date" id="edit-date" name="edit-date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
+                </div>
+                <div>
+                    <label for="edit-time" class="block text-sm font-medium text-gray-700">Thời gian vi phạm</label>
+                    <input type="time" id="edit-time" name="edit-time" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    Lưu thay đổi
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="delete-reason-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm relative modal-content">
+            <button id="close-delete-reason-modal-btn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Xác nhận xóa lỗi</h2>
+            <form id="delete-reason-form" class="space-y-4">
+                <input type="hidden" id="delete-student-id" value="">
+                <input type="hidden" id="delete-violation-index" value="">
+                <div>
+                    <label for="delete-reason" class="block text-sm font-medium text-gray-700">Vui lòng nhập lý do xóa</label>
+                    <textarea id="delete-reason" name="delete-reason" rows="3" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500" placeholder="Ví dụ: Tích nhầm, học sinh đã khắc phục..."></textarea>
+                </div>
+                <button type="submit" class="w-full ripple flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Xác nhận xóa
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50 modal">
+        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-sm relative modal-content text-center">
+            <p id="alert-message" class="text-gray-800 font-medium"></p>
+            <button id="close-alert-modal-btn" class="mt-4 ripple bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">Đóng</button>
+        </div>
+    </div>
+
+    <script>
+        // API key và Bin ID của bạn trên jsonbin.io
+        let API_KEY = '$2a$10$6pQQ0LxQ2CLpXaDR8bGRAe9/5S82j4iRaYIOZrkHqF.B2aTbi4Mea';
+        let BIN_ID  ='68c18f83d0ea881f4078e556 ';
+        const BASE_URL = 'https://api.jsonbin.io/v3/b';
+        let data = {
+            currentWeek: 1,
+            weeks: {},
+            monthlyConduct: {},
+            teamLeaderData: {} 
+        };
+        let isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        let loggedInUser = localStorage.getItem('loggedInUser') || '';
+        let loggedInUserType = localStorage.getItem('loggedInUserType') || '';
+
+        const initialStudents = [
+            { id: 'HS001', name: 'Nguyễn Văn A', team: 'to1', score: 100, demerits: [] },
+            { id: 'HS002', name: 'Trần Thị B', team: 'to1', score: 100, demerits: [] },
+            { id: 'HS003', name: 'Lê Văn C', team: 'to2', score: 100, demerits: [] },
+            { id: 'HS004', name: 'Phạm Thị D', team: 'to2', score: 100, demerits: [] },
+            { id: 'HS005', name: 'Vũ Văn E', 'team': 'to3', score: 100, demerits: [] },
+            { id: 'HS006', name: 'Hoàng Thị F', team: 'to3', score: 100, demerits: [] },
+            { id: 'HS007', name: 'Đặng Văn G', team: 'to4', score: 100, demerits: [] },
+            { id: 'HS008', name: 'Bùi Thị H', team: 'to4', score: 100, demerits: [] }
+        ];
+
+        const teams = ['to1', 'to2', 'to3', 'to4'];
+        
+        const violationsList = [
+            { violation: 'Mất trật tự hoặc làm việc riêng trong giờ học', points: -10 },
+            { violation: 'Đi học muộn, vào lớp sau giáo viên', points: -10 },
+            { violation: 'Sử dụng điện thoại trong giờ học', points: -10 },
+            { violation: 'Không ghi chép bài đầy đủ', points: -10 },
+            { violation: 'Nói tục chửi bậy', points: -10 },
+            { violation: 'Có hành vi, lời nói vô lễ với giáo viên', points: -20 },
+            { violation: 'Trốn học, bỏ tiết, nghỉ học không phép', points: -20 },
+            { violation: 'Trực nhật bẩn, quên trực nhật', points: -10 },
+            { violation: 'Bị ghi sổ đầu bài', points: -20 },
+            { violation: 'Tự ý đổi chỗ ngồi', points: -10 },
+            { violation: 'Không mặc đồng phục, đi dép lê, không đeo thẻ', points: -10 },
+            { violation: 'Nghỉ học có phép', points: -5 },
+            { violation: 'Ngủ trong giờ học', points: -10 },
+            { violation: '0-1-2 điểm thi đua', points: -5 },
+            { violation: '3-4 điểm thi đua', points: -4 },
+            { violation: '5-6 điểm thi đua', points: +2 },
+            { violation: '7-8 điểm thi đua', points: +5 },
+            { violation: '9-10 điểm thi đua', points: +10 }
+        ];
+        
+        const loadingScreen = document.getElementById('loading-screen');
+        const mainContent = document.getElementById('main-content');
+        
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                loadingScreen.classList.add('fade-out');
+                mainContent.classList.add('fade-in');
+                document.body.style.overflow = 'auto';
+            }, 1500);
+        });
+
+        const scoreTableBody = document.getElementById('score-table-body');
+        const showLoginModalBtn = document.getElementById('show-login-modal-btn');
+        const showTeacherLoginModalBtn = document.getElementById('show-teacher-login-modal-btn');
+        const showAdminLoginModalBtn = document.getElementById('show-admin-login-modal-btn');
+        const showDemeritModalBtn = document.getElementById('show-demerit-modal-btn');
+        const mainActionsContainer = document.getElementById('main-actions');
+        const loginModal = document.getElementById('login-modal');
+        const teacherLoginModal = document.getElementById('teacher-login-modal');
+        const adminLoginModal = document.getElementById('admin-login-modal');
+        const demeritModal = document.getElementById('demerit-modal');
+        const violationsDetailModal = document.getElementById('violations-detail-modal');
+        const teacherDashboardModal = document.getElementById('teacher-dashboard-modal');
+        const changeTeamModal = document.getElementById('change-team-modal');
+        const editViolationModal = document.getElementById('edit-violation-modal');
+        const loginForm = document.getElementById('login-form');
+        const teacherLoginForm = document.getElementById('teacher-login-form');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const closeLoginModalBtn = document.getElementById('close-login-modal-btn');
+        const closeTeacherLoginModalBtn = document.getElementById('close-teacher-login-modal-btn');
+        const closeAdminLoginModalBtn = document.getElementById('close-admin-login-modal-btn');
+        const closeDemeritModalBtn = document.getElementById('close-demerit-modal-btn');
+        const closeViolationsModalBtn = document.getElementById('close-violations-modal-btn');
+        const closeTeacherDashboardBtn = document.getElementById('close-teacher-dashboard-btn');
+        const closeChangeTeamModalBtn = document.getElementById('close-change-team-modal-btn');
+        const closeEditViolationModalBtn = document.getElementById('close-edit-violation-modal-btn');
+        const studentSelect = document.getElementById('student-select');
+        const violationSelect = document.getElementById('violation-select');
+        const dateSelect = document.getElementById('date-select');
+        const demeritForm = document.getElementById('demerit-form');
+        const demeritModalTitle = document.getElementById('demerit-modal-title');
+        const studentNameDetail = document.getElementById('student-name-detail');
+        const violationsListContainer = document.getElementById('violations-list');
+        const noViolationsMessage = document.getElementById('no-violations-message');
+        const alertModal = document.getElementById('alert-modal');
+        const alertMessage = document.getElementById('alert-message');
+        const closeAlertModalBtn = document.getElementById('close-alert-modal-btn');
+        const teacherStudentListBody = document.getElementById('teacher-student-list-body');
+        const studentNameChangeTeam = document.getElementById('student-name-change-team');
+        const studentIdChangeTeam = document.getElementById('student-id-change-team');
+        const newTeamSelect = document.getElementById('new-team-select');
+        const changeTeamForm = document.getElementById('change-team-form');
+        const createNewWeekBtn = document.getElementById('create-new-week-btn');
+        const showTeacherDemeritModalBtn = document.getElementById('show-teacher-demerit-modal-btn');
+        const weekSelect = document.getElementById('week-select');
+        const currentWeekInfo = document.getElementById('current-week-info');
+        const monthlyConductModal = document.getElementById('monthly-conduct-modal');
+        const closeMonthlyConductModalBtn = document.getElementById('close-monthly-conduct-modal-btn');
+        const monthlyConductList = document.getElementById('monthly-conduct-list');
+        const monthlyConductMessage = document.getElementById('monthly-conduct-message');
+        const loginButtonsContainer = document.getElementById('login-buttons');
+        const logoutButtonContainer = document.getElementById('logout-button-container');
+        const logoutBtn = document.getElementById('logout-btn');
+        const accountNameSpan = document.getElementById('account-name');
+        const weeklyViolationsList = document.getElementById('weekly-violations-list');
+        const toggleTeacherDashboardBtn = document.getElementById('toggle-teacher-dashboard-btn');
+        const dashboardUserTypeSpan = document.getElementById('dashboard-user-type');
+        const editViolationForm = document.getElementById('edit-violation-form');
+        const editStudentIdInput = document.getElementById('edit-student-id');
+        const editViolationIndexInput = document.getElementById('edit-violation-index');
+        const editDateInput = document.getElementById('edit-date');
+        const editTimeInput = document.getElementById('edit-time');
+        const announcementMarqueeContainer = document.getElementById('announcement-marquee-container');
+        const announcementMarquee = document.getElementById('announcement-marquee');
+        const todayViolationsSection = document.getElementById('today-violations-section');
+        const todayViolationsList = document.getElementById('today-violations-list');
+        const clearTodayViolationsBtn = document.getElementById('clear-today-violations-btn');
+        const deleteReasonModal = document.getElementById('delete-reason-modal');
+        const closeDeleteReasonModalBtn = document.getElementById('close-delete-reason-modal-btn');
+        const deleteReasonForm = document.getElementById('delete-reason-form');
+        const deleteStudentIdInput = document.getElementById('delete-student-id');
+        const deleteViolationIndexInput = document.getElementById('delete-violation-index');
+        const deleteReasonTextarea = document.getElementById('delete-reason');
+        const rankingSection = document.getElementById('ranking-section');
+        const topStudentsList = document.getElementById('top-students-list');
+        const topTeamsList = document.getElementById('top-teams-list');
+        const dailyCheckConfirm = document.getElementById('daily-check-confirm');
+        const teamLeaderManagementList = document.getElementById('team-leader-management-list');
+        const teamLeaderWarningSection = document.getElementById('team-leader-warning-section');
+        const teamLeaderWarningMessage = document.getElementById('team-leader-warning-message');
+        const contentWrapper = document.getElementById('content-wrapper');
+
+
+        function getConduct(score) {
+            if (score >= 90) return 'Tốt';
+            if (score >= 70) return 'Khá';
+            if (score >= 50) return 'Đạt';
+            return 'Chưa đạt';
+        }
+
+        function showAlert(message) {
+            alertMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+        }
+
+        closeAlertModalBtn.addEventListener('click', () => {
+            alertModal.classList.add('hidden');
+        });
+
+        function isToday(dateString) {
+            const date = new Date(dateString);
+            const today = new Date();
+            return date.getDate() === today.getDate() &&
+                   date.getMonth() === today.getMonth() &&
+                   date.getFullYear() === today.getFullYear();
+        }
+        
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('.ripple');
+            if (target) {
+                const rect = target.getBoundingClientRect();
+                const ripple = document.createElement('span');
+                ripple.className = 'ripple-effect';
+                ripple.style.left = `${e.clientX - rect.left}px`;
+                ripple.style.top = `${e.clientY - rect.top}px`;
+                target.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            }
+        });
+
+        async function loadData() {
+            try {
+                const response = await fetch(`${BASE_URL}/${BIN_ID}`, {
+                    method: 'GET',
+                    headers: { 'X-Master-Key': API_KEY, },
+                });
+
+                if (response.ok) {
+                    const loadedData = await response.json();
+                    if (loadedData && loadedData.record) {
+                        data = loadedData.record;
+                        if (!data.teamLeaderData) data.teamLeaderData = {};
+                        if (data.currentWeek === undefined || data.currentWeek === null) {
+                            const weeks = Object.keys(data.weeks);
+                            data.currentWeek = weeks.length > 0 ? Math.max(...weeks.map(Number)) : 1;
+                        }
+                    } else {
+                        data.weeks[data.currentWeek] = initialStudents;
+                        data.monthlyConduct = {};
+                        data.teamLeaderData = {};
+                        await saveData(data);
+                    }
+                } else {
+                    data.weeks[data.currentWeek] = initialStudents;
+                    data.monthlyConduct = {};
+                    data.teamLeaderData = {};
+                    await saveData(data);
+                }
+            } catch (error) {
+                console.error('Lỗi khi tải dữ liệu từ JSON Bin:', error);
+                data.weeks[data.currentWeek] = initialStudents;
+                showAlert("Đã xảy ra lỗi khi tải dữ liệu. Vui lòng kiểm tra lại kết nối hoặc API Key/Bin ID.");
+            } finally {
+                renderApp();
+            }
+        }
+
+        async function saveData(dataToSave) {
+            try {
+                const response = await fetch(`${BASE_URL}/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY,
+                    },
+                    body: JSON.stringify(dataToSave),
+                });
+                if (!response.ok) {
+                    console.error('Lỗi khi lưu dữ liệu:', await response.json());
+                } else {
+                    console.log('Đã lưu dữ liệu thành công!');
+                }
+            } catch (error) {
+                console.error('Lỗi mạng khi lưu dữ liệu:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+        
+        function updateUIForLoginState() {
+            if (isLoggedIn) {
+                loginButtonsContainer.classList.add('hidden');
+                logoutButtonContainer.classList.remove('hidden');
+                accountNameSpan.textContent = loggedInUser;
+                
+                contentWrapper.classList.remove('hidden');
+                
+                if (loggedInUserType === 'to') {
+                    mainActionsContainer.classList.remove('hidden');
+                    toggleTeacherDashboardBtn.classList.add('hidden');
+                    rankingSection.classList.add('hidden');
+                } else if (loggedInUserType === 'teacher' || loggedInUserType === 'admin') {
+                    mainActionsContainer.classList.add('hidden');
+                    toggleTeacherDashboardBtn.classList.remove('hidden');
+                    rankingSection.classList.remove('hidden');
+                }
+            } else { 
+                loginButtonsContainer.classList.remove('hidden');
+                logoutButtonContainer.classList.add('hidden');
+                accountNameSpan.textContent = '';
+
+                contentWrapper.classList.add('hidden');
+                
+                mainActionsContainer.classList.add('hidden');
+                toggleTeacherDashboardBtn.classList.add('hidden');
+            }
+        }
+
+        function renderApp() {
+            updateUIForLoginState();
+            populateWeekSelect();
+
+            if (isLoggedIn) {
+                const selectedWeek = weekSelect.value || data.currentWeek;
+                let currentWeekData = data.weeks[selectedWeek] || [];
+
+                currentWeekInfo.textContent = `Tuần: ${selectedWeek}`;
+
+                if (loggedInUserType === 'to') {
+                    const teamName = loggedInUser.split(' ')[2].toLowerCase();
+                    currentWeekData = currentWeekData.filter(student => student.team === teamName);
+                }
+                
+                renderScoreTable(currentWeekData);
+
+                if (loggedInUserType !== 'to') {
+                     renderRankings(selectedWeek);
+                }
+                updateAnnouncementMarquee();
+                renderTodaysViolations();
+                updateDailyCheckStatus();
+                updateTeamLeaderWarning();
+            } else {
+                scoreTableBody.innerHTML = '';
+                currentWeekInfo.textContent = '';
+            }
+        }
+
+        function populateWeekSelect() {
+            weekSelect.innerHTML = '';
+            const weeks = Object.keys(data.weeks).sort((a, b) => b - a);
+            weeks.forEach(week => {
+                const option = document.createElement('option');
+                option.value = week;
+                option.textContent = `Tuần ${week}`;
+                weekSelect.appendChild(option);
+            });
+            weekSelect.value = data.currentWeek;
+        }
+
+        weekSelect.addEventListener('change', (e) => {
+            const selectedWeek = e.target.value;
+            let weekData = data.weeks[selectedWeek];
+            if (loggedInUserType === 'to') {
+                const teamName = loggedInUser.split(' ')[2].toLowerCase();
+                weekData = weekData.filter(student => student.team === teamName);
+            }
+            currentWeekInfo.textContent = `Tuần: ${selectedWeek}`;
+            renderScoreTable(weekData);
+            if (loggedInUserType !== 'to') {
+                renderRankings(selectedWeek);
+            }
+        });
+
+        function renderScoreTable(students) {
+            scoreTableBody.innerHTML = '';
+            if (!students) return;
+
+            students.sort((a,b) => a.name.localeCompare(b.name)).forEach(student => {
+                const row = document.createElement('tr');
+                row.dataset.studentId = student.id;
+                row.className = 'hover:bg-gray-100 transition-colors duration-200 cursor-pointer';
+
+                const monthlyConduct = data.monthlyConduct[student.id] ? (data.monthlyConduct[student.id].conduct || 'Chưa có') : 'Chưa có';
+                const monthlyConductColor = monthlyConduct === 'Tốt' ? 'text-green-600' : monthlyConduct === 'Khá' ? 'text-orange-600' : monthlyConduct === 'Đạt' ? 'text-blue-600' : 'text-red-600';
+                const weeklyConduct = getConduct(student.score);
+                const weeklyConductColor = weeklyConduct === 'Tốt' ? 'text-green-600' : weeklyConduct === 'Khá' ? 'text-orange-600' : weeklyConduct === 'Đạt' ? 'text-blue-600' : 'text-red-600';
+                
+                const activeDemeritsCount = student.demerits.filter(d => !d.isDeleted).length;
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 view-violations-trigger">${student.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.team.toUpperCase()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.score}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${weeklyConductColor}">${weeklyConduct}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${monthlyConductColor}">${monthlyConduct}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activeDemeritsCount}</td>
+                `;
+                scoreTableBody.appendChild(row);
+            });
+        }
+        
+        function renderTeacherStudentList() {
+            teacherStudentListBody.innerHTML = '';
+            const allStudents = data.weeks[data.currentWeek];
+            if (!allStudents) return;
+
+            allStudents.sort((a,b) => a.name.localeCompare(b.name)).forEach(student => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-100 transition-colors duration-200';
+                
+                const activeDemeritsCount = student.demerits.filter(d => !d.isDeleted).length;
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.team.toUpperCase()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activeDemeritsCount}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
+                        <button data-student-id="${student.id}" class="view-violations-btn text-blue-600 hover:text-blue-900 font-medium">Xem lỗi</button>
+                        <button data-student-id="${student.id}" class="change-team-btn text-purple-600 hover:text-purple-900 font-medium">Đổi tổ</button>
+                    </td>
+                `;
+                teacherStudentListBody.appendChild(row);
+            });
+        }
+
+        function renderWeeklyViolations() {
+            weeklyViolationsList.innerHTML = '';
+            const allViolations = [];
+            Object.keys(data.weeks).sort((a, b) => b - a).forEach(week => {
+                if (!data.weeks[week]) return;
+                data.weeks[week].forEach(student => {
+                    student.demerits
+                        .filter(d => !d.isDeleted)
+                        .forEach(demerit => {
+                            allViolations.push({
+                                studentName: student.name,
+                                team: student.team,
+                                violation: demerit.violation,
+                                points: demerit.points,
+                                week: demerit.week,
+                                timestamp: demerit.timestamp
+                            });
+                        });
+                });
+            });
+
+            if (allViolations.length === 0) {
+                 weeklyViolationsList.innerHTML = '<p class="text-center text-gray-500">Chưa có lỗi vi phạm nào được ghi nhận.</p>';
+                 return;
+            }
+
+            const violationsByWeek = allViolations.reduce((acc, violation) => {
+                if (!acc[violation.week]) {
+                    acc[violation.week] = [];
+                }
+                acc[violation.week].push(violation);
+                return acc;
+            }, {});
+
+            Object.keys(violationsByWeek).sort((a, b) => b - a).forEach(week => {
+                const weekSection = document.createElement('div');
+                weekSection.className = 'p-4 bg-gray-100 rounded-lg shadow-sm border border-gray-200';
+                weekSection.innerHTML = `<h4 class="text-lg font-bold text-gray-800 mb-2">Tuần ${week}</h4>`;
+                
+                const violationsInWeek = violationsByWeek[week];
+                const violationsByTeam = violationsInWeek.reduce((acc, violation) => {
+                    if (!acc[violation.team]) {
+                        acc[violation.team] = [];
+                    }
+                    acc[violation.team].push(violation);
+                    return acc;
+                }, {});
+
+                teams.forEach(team => {
+                    const teamViolations = violationsByTeam[team];
+                    if (teamViolations && teamViolations.length > 0) {
+                        const teamSection = document.createElement('div');
+                        teamSection.className = 'p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-200 mt-4';
+                        teamSection.innerHTML = `<h5 class="font-bold text-gray-700 mb-2">Tổ ${team.slice(2)}</h5><ul class="space-y-2">`;
+                        
+                        teamViolations.forEach(v => {
+                             const date = new Date(v.timestamp);
+                             teamSection.innerHTML += `
+                                <li class="text-sm text-gray-700">
+                                    <span class="font-medium">${v.studentName}:</span> ${v.violation} (${v.points > 0 ? '+' : ''}${v.points} điểm)
+                                    <span class="text-gray-500 text-xs"> (Ngày ${date.toLocaleDateString('vi-VN')} lúc ${date.toLocaleTimeString('vi-VN')})</span>
+                                </li>
+                             `;
+                        });
+                        teamSection.innerHTML += '</ul>';
+                        weekSection.appendChild(teamSection);
+                    }
+                });
+                weeklyViolationsList.appendChild(weekSection);
+            });
+        }
+        
+        function renderTeacherDashboard() {
+            dashboardUserTypeSpan.textContent = loggedInUserType === 'admin' ? 'Admin' : 'Giáo viên';
+            renderTeacherStudentList();
+            renderWeeklyViolations();
+            renderTeamLeaderManagement();
+        }
+ 
+        function renderMonthlyConductList() {
+            monthlyConductList.innerHTML = '';
+            const allStudents = Object.values(data.weeks).flat().reduce((acc, student) => {
+                if (!acc.find(s => s.id === student.id)) {
+                    acc.push({ ...student, weeklyScores: [] });
+                }
+                return acc;
+            }, []);
+            
+            monthlyConductMessage.classList.add('hidden');
+
+            Object.keys(data.weeks).sort((a, b) => a - b).forEach(week => {
+                const weekData = data.weeks[week];
+                if(weekData) {
+                    weekData.forEach(student => {
+                        const existingStudent = allStudents.find(s => s.id === student.id);
+                        if (existingStudent) {
+                            existingStudent.weeklyScores.push(student.score);
+                        }
+                    });
+                }
+            });
+            
+            if (allStudents.every(s => s.weeklyScores.length === 0)) {
+                monthlyConductMessage.textContent = 'Chưa có đủ dữ liệu để xét hạnh kiểm tháng.';
+                monthlyConductMessage.classList.remove('hidden');
+                return;
+            }
+
+            allStudents.sort((a,b) => a.name.localeCompare(b.name)).forEach(student => {
+                const monthlyConductStatus = data.monthlyConduct[student.id];
+
+                const item = document.createElement('div');
+                item.className = 'p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between';
+                
+                let conductUI = '';
+
+                let deleteButtonHTML = '';
+                if ((loggedInUserType === 'admin' || loggedInUserType === 'teacher') && monthlyConductStatus && monthlyConductStatus.conduct) {
+                    deleteButtonHTML = `<button data-student-id="${student.id}" class="delete-monthly-conduct-btn text-red-600 hover:text-red-900 text-xs font-medium ml-2">(Xóa)</button>`;
+                }
+
+                if (monthlyConductStatus && monthlyConductStatus.conduct) {
+                    const conductColor = monthlyConductStatus.conduct === 'Tốt' ? 'text-green-600' : monthlyConductStatus.conduct === 'Khá' ? 'text-orange-600' : monthlyConductStatus.conduct === 'Đạt' ? 'text-blue-600' : 'text-red-600';
+                    conductUI = `
+                        <div class="flex items-center">
+                            <span class="font-semibold ${conductColor}">Đã xét: ${monthlyConductStatus.conduct}</span>
+                            ${deleteButtonHTML}
+                        </div>`;
+                } else {
+                    const avgScore = student.weeklyScores.length > 0 ? student.weeklyScores.reduce((sum, score) => sum + score, 0) / student.weeklyScores.length : null;
+                    const conductOptions = ['Tốt', 'Khá', 'Đạt', 'Chưa đạt'];
+                    conductUI = `
+                        <div class="flex items-center space-x-2">
+                            <p class="text-sm text-gray-600">Điểm TB: <span class="font-medium">${avgScore !== null ? avgScore.toFixed(1) : 'N/A'}</span></p>
+                            <select data-student-id="${student.id}" class="set-monthly-conduct-select px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Chọn</option>
+                                ${conductOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+
+                item.innerHTML = `
+                    <div>
+                        <p class="font-bold text-gray-900">${student.name}</p>
+                        <p class="text-sm text-gray-600">Tổ: ${student.team.toUpperCase()}</p>
+                    </div>
+                    <div>
+                        ${conductUI}
+                    </div>
+                `;
+                monthlyConductList.appendChild(item);
+            });
+        }
+        
+        function updateAnnouncementMarquee() {
+            if (isLoggedIn) {
+                const message = "Yêu cầu các tổ trưởng hoàn thành việc tích lỗi cho tổ viên trước 20:00 (8 giờ tối) hàng ngày. Xin cảm ơn";
+                announcementMarquee.textContent = message;
+                announcementMarqueeContainer.classList.remove('hidden');
+            } else {
+                announcementMarqueeContainer.classList.add('hidden');
+            }
+        }
+
+        function renderTodaysViolations() {
+            todayViolationsList.innerHTML = '';
+            let violationsTodayFound = false;
+            let allStudentsInWeek = data.weeks[weekSelect.value || data.currentWeek] || [];
+            
+            let studentsToDisplay = allStudentsInWeek;
+
+            if (loggedInUserType === 'to') {
+                const loggedInTeam = loggedInUser.split(' ')[2].toLowerCase();
+                studentsToDisplay = allStudentsInWeek.filter(student => student.team === loggedInTeam);
+            }
+
+            studentsToDisplay.forEach(student => {
+                student.demerits.forEach((demerit, index) => {
+                    if (isToday(demerit.timestamp)) {
+                        violationsTodayFound = true;
+                        const date = new Date(demerit.timestamp);
+                        const loggedInTeam = loggedInUserType === 'to' ? loggedInUser.split(' ')[2].toLowerCase() : '';
+                        
+                        const canDelete = loggedInUserType === 'admin' || (loggedInUserType === 'to' && student.team === loggedInTeam);
+
+                        const item = document.createElement('div');
+                        const isDeleted = demerit.isDeleted;
+                        
+                        item.className = `p-3 rounded-lg shadow-sm border ${isDeleted ? 'bg-gray-100 border-gray-200' : 'bg-red-50 border-red-200'} fade-in`;
+
+                        let deleteInfoHTML = '';
+                        if (isDeleted) {
+                            const deleteDate = new Date(demerit.deletionTimestamp);
+                            deleteInfoHTML = `
+                                <div class="mt-2 text-xs text-gray-500 border-t pt-1">
+                                    <p><span class="font-medium">Đã xóa bởi:</span> ${demerit.deletedBy}</p>
+                                    <p><span class="font-medium">Lúc:</span> ${deleteDate.toLocaleTimeString('vi-VN')}</p>
+                                    <p><span class="font-medium">Lý do:</span> ${demerit.deletionReason}</p>
+                                </div>
+                            `;
+                        }
+
+                        item.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-medium ${isDeleted ? 'text-gray-500 line-through' : 'text-gray-800'}">
+                                        ${student.name} <span class="text-sm font-normal text-gray-600">(${student.team.toUpperCase()})</span>: ${demerit.violation}
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        Lúc: ${date.toLocaleTimeString('vi-VN')} - Người tích: ${demerit.recorder || 'Không rõ'}
+                                    </p>
+                                </div>
+                                <button 
+                                    data-student-id="${student.id}" 
+                                    data-index="${index}" 
+                                    class="delete-violation-btn ripple text-red-600 hover:text-red-900 font-medium text-sm p-1 ${canDelete && !isDeleted ? '' : 'hidden'}">
+                                    Xóa
+                                </button>
+                            </div>
+                            ${deleteInfoHTML}
+                        `;
+                        todayViolationsList.appendChild(item);
+                    }
+                });
+            });
+
+            if (violationsTodayFound) {
+                todayViolationsSection.classList.remove('hidden');
+                if (loggedInUserType === 'admin') {
+                    clearTodayViolationsBtn.classList.remove('hidden');
+                } else {
+                    clearTodayViolationsBtn.classList.add('hidden');
+                }
+            } else {
+                todayViolationsSection.classList.add('hidden');
+                clearTodayViolationsBtn.classList.add('hidden');
+            }
+        }
+        
+        function renderRankings(week = data.currentWeek) {
+             const students = data.weeks[week] || [];
+             if (students.length === 0 || loggedInUserType === 'to') {
+                rankingSection.classList.add('hidden');
+                return;
+             }
+
+             rankingSection.classList.remove('hidden');
+             
+             const sortedStudents = [...students].sort((a, b) => b.score - a.score);
+             topStudentsList.innerHTML = '';
+             const badges = ['🏆', '🥈', '🥉'];
+             const glowClasses = ['glow-gold', 'glow-silver', 'glow-bronze'];
+             
+             sortedStudents.slice(0, 3).forEach((student, index) => {
+                 const item = document.createElement('div');
+                 item.className = `p-2 rounded-lg flex items-center justify-between text-sm ${glowClasses[index]}`;
+                 item.innerHTML = `
+                    <span>${badges[index]} ${student.name}</span>
+                    <span class="font-bold">${student.score} điểm</span>
+                 `;
+                 topStudentsList.appendChild(item);
+             });
+
+             const teamScores = teams.map(teamId => {
+                 const teamStudents = students.filter(s => s.team === teamId);
+                 const totalScore = teamStudents.reduce((sum, s) => sum + s.score, 0);
+                 const avgScore = teamStudents.length > 0 ? totalScore / teamStudents.length : 0;
+                 return { teamId, avgScore };
+             }).sort((a, b) => b.avgScore - a.avgScore);
+
+             topTeamsList.innerHTML = '';
+             teamScores.slice(0, 3).forEach((team, index) => {
+                 const item = document.createElement('div');
+                 item.className = `p-2 rounded-lg flex items-center justify-between text-sm ${glowClasses[index]}`;
+                 item.innerHTML = `
+                    <span>${badges[index]} ${team.teamId.toUpperCase()}</span>
+                    <span class="font-bold">${team.avgScore.toFixed(1)} điểm</span>
+                 `;
+                 topTeamsList.appendChild(item);
+             });
+        }
+        
+        function getTeamLeaderData(teamId, week) {
+            const currentWeek = week || data.currentWeek;
+            if (!data.teamLeaderData[currentWeek]) {
+                data.teamLeaderData[currentWeek] = {};
+            }
+            if (!data.teamLeaderData[currentWeek][teamId]) {
+                 data.teamLeaderData[currentWeek][teamId] = { bonus: 0, warnings: [], dailyCheckDate: null, reportStatus: 'pending' };
+            }
+            return data.teamLeaderData[currentWeek][teamId];
+        }
+
+        function updateDailyCheckStatus() {
+            if (loggedInUserType === 'to') {
+                const teamName = loggedInUser.split(' ')[2].toLowerCase();
+                const leaderData = getTeamLeaderData(teamName, weekSelect.value);
+                const todayStr = new Date().toISOString().split('T')[0];
+                dailyCheckConfirm.checked = (leaderData.dailyCheckDate === todayStr);
+            }
+        }
+        
+        dailyCheckConfirm.addEventListener('change', async () => {
+             if (loggedInUserType === 'to') {
+                const teamName = loggedInUser.split(' ')[2].toLowerCase();
+                const leaderData = getTeamLeaderData(teamName, data.currentWeek);
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                if (dailyCheckConfirm.checked) {
+                    leaderData.dailyCheckDate = todayStr;
+                    const now = new Date();
+                    const deadline = new Date();
+                    deadline.setHours(20, 0, 0, 0);
+
+                    if (now > deadline) {
+                        leaderData.reportStatus = 'late';
+                        showAlert(`Đã xác nhận kiểm tra cuối ngày (Báo cáo trễ).`);
+                    } else {
+                        leaderData.reportStatus = 'on-time';
+                        showAlert(`Đã xác nhận kiểm tra cuối ngày (Đúng giờ).`);
+                    }
+                } else {
+                    leaderData.dailyCheckDate = null;
+                    leaderData.reportStatus = 'pending';
+                    showAlert(`Đã bỏ xác nhận kiểm tra cuối ngày.`);
+                }
+                
+                await saveData(data);
+             }
+        });
+        
+        function updateTeamLeaderWarning() {
+            if (loggedInUserType === 'to') {
+                const teamName = loggedInUser.split(' ')[2].toLowerCase();
+                const leaderData = getTeamLeaderData(teamName, weekSelect.value);
+                if (leaderData.warnings.length > 0) {
+                    teamLeaderWarningMessage.textContent = 'Bạn có cảnh báo từ giáo viên: ' + leaderData.warnings.join(', ');
+                    teamLeaderWarningSection.classList.remove('hidden');
+                } else {
+                    teamLeaderWarningSection.classList.add('hidden');
+                }
+            } else {
+                 teamLeaderWarningSection.classList.add('hidden');
+            }
+        }
+        
+        function renderTeamLeaderManagement() {
+             teamLeaderManagementList.innerHTML = '';
+             teams.forEach(teamId => {
+                 const leaderData = getTeamLeaderData(teamId, data.currentWeek);
+                 const item = document.createElement('div');
+                 item.className = 'p-4 bg-gray-50 rounded-lg shadow-sm border flex justify-between items-center';
+                 
+                 const todayStr = new Date().toISOString().split('T')[0];
+                 let statusText = '';
+                 let statusColor = '';
+
+                if (leaderData.dailyCheckDate === todayStr) {
+                    if (leaderData.reportStatus === 'late') {
+                        statusText = 'Đã xác nhận (Báo cáo trễ)';
+                        statusColor = 'text-orange-500 font-bold';
+                    } else { 
+                        statusText = 'Đã xác nhận (Đúng giờ)';
+                        statusColor = 'text-green-600';
+                    }
+                } else {
+                    statusText = 'Chưa xác nhận kiểm tra';
+                    statusColor = 'text-red-600';
+                }
+
+                 item.innerHTML = `
+                    <div>
+                        <p class="font-bold text-gray-800">${teamId.toUpperCase()}</p>
+                        <p class="text-sm ${statusColor}">${statusText}</p>
+                        <p class="text-sm text-yellow-600">Điểm thưởng: ${leaderData.bonus}</p>
+                         <p class="text-xs text-red-500">${leaderData.warnings.length > 0 ? 'Cảnh báo: ' + leaderData.warnings.join(', ') : ''}</p>
+                    </div>
+                    <div class="space-x-2">
+                         <button data-team-id="${teamId}" class="award-bonus-btn ripple bg-green-500 hover:bg-green-600 text-white text-xs font-medium py-1 px-2 rounded">Thưởng</button>
+                         <button data-team-id="${teamId}" class="issue-warning-btn ripple bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium py-1 px-2 rounded">Cảnh báo</button>
+                    </div>
+                 `;
+                 teamLeaderManagementList.appendChild(item);
+             });
+        }
+ 
+        showLoginModalBtn.addEventListener('click', () => { loginModal.classList.remove('hidden'); loginModal.classList.add('is-active');});
+        showTeacherLoginModalBtn.addEventListener('click', () => { teacherLoginModal.classList.remove('hidden'); teacherLoginModal.classList.add('is-active'); });
+        showAdminLoginModalBtn.addEventListener('click', () => { adminLoginModal.classList.remove('hidden'); adminLoginModal.classList.add('is-active'); });
+        closeLoginModalBtn.addEventListener('click', () => { loginModal.classList.add('hidden'); loginModal.classList.remove('is-active'); });
+        closeTeacherLoginModalBtn.addEventListener('click', () => { teacherLoginModal.classList.add('hidden'); teacherLoginModal.classList.remove('is-active'); });
+        closeAdminLoginModalBtn.addEventListener('click', () => { adminLoginModal.classList.add('hidden'); adminLoginModal.classList.remove('is-active'); });
+        closeDemeritModalBtn.addEventListener('click', () => { demeritModal.classList.add('hidden'); demeritModal.classList.remove('is-active'); });
+        closeViolationsModalBtn.addEventListener('click', () => { violationsDetailModal.classList.add('hidden'); violationsDetailModal.classList.remove('is-active'); });
+        closeTeacherDashboardBtn.addEventListener('click', () => { teacherDashboardModal.classList.add('hidden'); teacherDashboardModal.classList.remove('is-active'); document.body.classList.remove('overflow-hidden'); });
+        closeMonthlyConductModalBtn.addEventListener('click', () => { monthlyConductModal.classList.add('hidden'); monthlyConductModal.classList.remove('is-active'); });
+        closeChangeTeamModalBtn.addEventListener('click', () => { changeTeamModal.classList.add('hidden'); changeTeamModal.classList.remove('is-active'); });
+        closeEditViolationModalBtn.addEventListener('click', () => { editViolationModal.classList.add('hidden'); editViolationModal.classList.remove('is-active'); });
+        closeDeleteReasonModalBtn.addEventListener('click', () => { deleteReasonModal.classList.add('hidden'); deleteReasonModal.classList.remove('is-active'); });
+
+        showDemeritModalBtn.addEventListener('click', () => {
+            const currentStudents = data.weeks[data.currentWeek];
+            const teamName = loggedInUser.split(' ')[2].toLowerCase();
+            const teamStudents = currentStudents.filter(student => student.team === teamName);
+            
+            demeritModalTitle.textContent = `Tích lỗi ${loggedInUser}`;
+
+            studentSelect.innerHTML = teamStudents.sort((a,b) => a.name.localeCompare(b.name)).map(student => `<option value="${student.id}">${student.name}</option>`).join('');
+            violationSelect.innerHTML = violationsList.map(item => `<option value="${item.violation}">${item.violation} (${item.points > 0 ? '+' : ''}${item.points} điểm)</option>`).join('');
+
+            demeritModal.classList.remove('hidden');
+            demeritModal.classList.add('is-active');
+        });
+        
+        showTeacherDemeritModalBtn.addEventListener('click', () => {
+             const currentStudents = data.weeks[data.currentWeek];
+             demeritModalTitle.textContent = `Tích lỗi ${loggedInUserType === 'admin' ? 'Admin' : 'Giáo viên'}`;
+             studentSelect.innerHTML = currentStudents.sort((a,b) => a.name.localeCompare(b.name)).map(student => `<option value="${student.id}">${student.name} (${student.team.toUpperCase()})</option>`).join('');
+             violationSelect.innerHTML = violationsList.map(item => `<option value="${item.violation}">${item.violation} (${item.points > 0 ? '+' : ''}${item.points} điểm)</option>`).join('');
+             demeritModal.classList.remove('hidden');
+             demeritModal.classList.add('is-active');
+        });
+        
+        logoutBtn.addEventListener('click', () => {
+            isLoggedIn = false;
+            loggedInUser = '';
+            loggedInUserType = '';
+            localStorage.setItem('isLoggedIn', 'false');
+            localStorage.removeItem('loggedInUser');
+            localStorage.removeItem('loggedInUserType');
+            renderApp();
+            teacherDashboardModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            showAlert('Đã đăng xuất thành công.');
+        });
+        
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim().toLowerCase();
+            const password = document.getElementById('password').value.trim();
+ 
+            if (username.startsWith('to') && teams.includes(username) && password === '112233') {
+                isLoggedIn = true;
+                loggedInUser = `Tổ trưởng ${username.toUpperCase()}`;
+                loggedInUserType = 'to';
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('loggedInUser', loggedInUser);
+                localStorage.setItem('loggedInUserType', loggedInUserType);
+                loginModal.classList.add('hidden');
+                showAlert(`Chào mừng ${loggedInUser}`);
+                renderApp();
+            } else {
+                showAlert('Tên tài khoản hoặc mật khẩu không đúng!');
+            }
+        });
+
+        teacherLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('teacher-username').value.trim().toLowerCase();
+            const password = document.getElementById('teacher-password').value.trim();
+
+            if (username === 'giaovien' && password === 'thunguyen') {
+                isLoggedIn = true;
+                loggedInUser = 'Giáo viên';
+                loggedInUserType = 'teacher';
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('loggedInUser', loggedInUser);
+                localStorage.setItem('loggedInUserType', loggedInUserType);
+                renderApp();
+                renderTeacherDashboard();
+                teacherLoginModal.classList.add('hidden');
+                teacherDashboardModal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            } else {
+                showAlert('Tên tài khoản hoặc mật khẩu không đúng!');
+            }
+        });
+
+        adminLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('admin-username').value.trim().toLowerCase();
+            const password = document.getElementById('admin-password').value.trim();
+
+            if (username === 'admin' && password === 'Dang2008') {
+                isLoggedIn = true;
+                loggedInUser = 'Admin';
+                loggedInUserType = 'admin';
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('loggedInUser', loggedInUser);
+                localStorage.setItem('loggedInUserType', loggedInUserType);
+                renderApp();
+                renderTeacherDashboard();
+                adminLoginModal.classList.add('hidden');
+                teacherDashboardModal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            } else {
+                showAlert('Tên tài khoản hoặc mật khẩu không đúng!');
+            }
+        });
+ 
+        demeritForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const selectedStudentId = studentSelect.value;
+            const selectedViolationName = violationSelect.value;
+            const selectedViolation = violationsList.find(v => v.violation === selectedViolationName);
+            const selectedDate = dateSelect.value;
+            const currentStudents = data.weeks[data.currentWeek];
+            const student = currentStudents.find(s => s.id === selectedStudentId);
+            const recorder = loggedInUser;
+            
+            const violationDate = new Date();
+            if (selectedDate === 'yesterday') {
+                violationDate.setDate(violationDate.getDate() - 1);
+            }
+ 
+            if (student) {
+                student.score += selectedViolation.points;
+                student.demerits.push({ 
+                    violation: selectedViolation.violation, 
+                    points: selectedViolation.points, 
+                    week: data.currentWeek, 
+                    timestamp: violationDate.toISOString(), 
+                    recorder: recorder,
+                    isDeleted: false,
+                    deletedBy: null,
+                    deletionTimestamp: null,
+                    deletionReason: null
+                });
+                
+                await saveData(data);
+                showAlert(`Đã tích lỗi "${selectedViolation.violation}" cho học sinh ${student.name}. Điểm còn lại: ${student.score}.`);
+                renderApp();
+                demeritModal.classList.add('hidden');
+                if (loggedInUserType === 'teacher' || loggedInUserType === 'admin') {
+                   renderTeacherDashboard();
+                }
+            }
+        });
+
+        async function softDeleteViolation(studentId, violationIndex, reason) {
+            const student = data.weeks[data.currentWeek].find(s => s.id === studentId);
+            if (student && student.demerits[violationIndex]) {
+                const demerit = student.demerits[violationIndex];
+
+                if (demerit.isDeleted) {
+                    showAlert('Lỗi này đã được xóa trước đó.');
+                    return;
+                }
+                
+                demerit.isDeleted = true;
+                demerit.deletedBy = loggedInUser;
+                demerit.deletionTimestamp = new Date().toISOString();
+                demerit.deletionReason = reason;
+                
+                student.score -= demerit.points;
+
+                await saveData(data);
+                showAlert(`Đã xóa lỗi "${demerit.violation}" cho học sinh ${student.name}.`);
+                
+                renderApp();
+                renderViolationsDetails(studentId);
+                if(loggedInUserType === 'admin' || loggedInUserType === 'teacher') {
+                    renderTeacherDashboard();
+                }
+            }
+        }
+        
+        editViolationForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const studentId = editStudentIdInput.value;
+            const violationIndex = parseInt(editViolationIndexInput.value);
+            const newDate = editDateInput.value;
+            const newTime = editTimeInput.value;
+
+            const student = data.weeks[data.currentWeek].find(s => s.id === studentId);
+            if (student && student.demerits[violationIndex]) {
+                const newTimestamp = new Date(`${newDate}T${newTime}`).toISOString();
+                student.demerits[violationIndex].timestamp = newTimestamp;
+                await saveData(data);
+                showAlert(`Đã sửa thời gian vi phạm cho học sinh ${student.name}.`);
+                editViolationModal.classList.add('hidden');
+                renderApp();
+                renderViolationsDetails(studentId);
+                renderTeacherDashboard();
+            }
+        });
+        
+        function renderViolationsDetails(studentId) {
+            const week = weekSelect.value;
+            const student = data.weeks[week].find(s => s.id === studentId);
+            
+            if (student) {
+                studentNameDetail.textContent = student.name;
+                violationsListContainer.innerHTML = '';
+                
+                if (student.demerits.length > 0) {
+                    noViolationsMessage.classList.add('hidden');
+                    student.demerits.forEach((demerit, index) => {
+                        const date = new Date(demerit.timestamp);
+                        const isDeleted = demerit.isDeleted;
+
+                        const canDelete = loggedInUserType === 'admin';
+
+                        const violationItem = document.createElement('div');
+                        violationItem.className = `p-4 rounded-lg shadow-sm border ${isDeleted ? 'bg-gray-100 border-gray-200' : 'bg-gray-50 border-gray-200'}`;
+
+                        let deleteInfoHTML = '';
+                        if (isDeleted) {
+                            const deleteDate = new Date(demerit.deletionTimestamp);
+                            deleteInfoHTML = `
+                                <div class="mt-2 text-xs text-gray-500 border-t pt-2">
+                                    <p><span class="font-medium">Đã xóa bởi:</span> ${demerit.deletedBy}</p>
+                                    <p><span class="font-medium">Lúc:</span> ${deleteDate.toLocaleDateString('vi-VN')} ${deleteDate.toLocaleTimeString('vi-VN')}</p>
+                                    <p><span class="font-medium">Lý do:</span> ${demerit.deletionReason}</p>
+                                </div>
+                            `;
+                        }
+                        
+                        violationItem.innerHTML = `
+                            <p class="font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-900'}">${demerit.violation} (${demerit.points > 0 ? '+' : ''}${demerit.points} điểm)</p>
+                            <p class="text-sm ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-500'} mt-1">Thời gian: Tuần ${demerit.week}, ${date.toLocaleDateString('vi-VN')} ${date.toLocaleTimeString('vi-VN')}</p>
+                            <p class="text-sm ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-500'} mt-1">Người tích: ${demerit.recorder || 'Không rõ'}</p>
+                            <div class="mt-2 space-x-2">
+                                <button data-student-id="${student.id}" data-index="${index}" class="edit-violation-btn ripple text-purple-600 hover:text-purple-900 font-medium ${loggedInUserType === 'admin' && !isDeleted ? '' : 'hidden'}">Sửa</button>
+                                <button data-student-id="${student.id}" data-index="${index}" class="delete-violation-btn ripple text-red-600 hover:text-red-900 font-medium ${canDelete && !isDeleted ? '' : 'hidden'}">Xóa</button>
+                            </div>
+                            ${deleteInfoHTML}
+                        `;
+                        violationsListContainer.appendChild(violationItem);
+                    });
+                } else {
+                    noViolationsMessage.classList.remove('hidden');
+                }
+                
+                violationsDetailModal.classList.remove('hidden');
+                violationsDetailModal.classList.add('is-active');
+            }
+        }
+
+        scoreTableBody.addEventListener('click', (e) => {
+            const row = e.target.closest('tr');
+            if (row) {
+                const studentId = row.dataset.studentId;
+                renderViolationsDetails(studentId);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const viewViolationsBtn = e.target.closest('.view-violations-btn');
+            const changeTeamBtn = e.target.closest('.change-team-btn');
+            const deleteViolationBtn = e.target.closest('.delete-violation-btn');
+            const editViolationBtn = e.target.closest('.edit-violation-btn');
+            const awardBonusBtn = e.target.closest('.award-bonus-btn');
+            const issueWarningBtn = e.target.closest('.issue-warning-btn');
+            
+            if (e.target.id === 'show-monthly-conduct-modal-btn') {
+                renderMonthlyConductList();
+                monthlyConductModal.classList.remove('hidden');
+                monthlyConductModal.classList.add('is-active');
+            }
+            
+            if (viewViolationsBtn) {
+                renderViolationsDetails(viewViolationsBtn.dataset.studentId);
+            }
+            
+            if (changeTeamBtn) {
+                const studentId = changeTeamBtn.dataset.studentId;
+                const student = data.weeks[data.currentWeek].find(s => s.id === studentId);
+                if (student) {
+                    studentNameChangeTeam.textContent = student.name;
+                    studentIdChangeTeam.value = student.id;
+                    newTeamSelect.value = student.team;
+                    changeTeamModal.classList.remove('hidden');
+                    changeTeamModal.classList.add('is-active');
+                }
+            }
+
+            if (deleteViolationBtn) {
+                const studentId = deleteViolationBtn.dataset.studentId;
+                const violationIndex = parseInt(deleteViolationBtn.dataset.index);
+                
+                deleteStudentIdInput.value = studentId;
+                deleteViolationIndexInput.value = violationIndex;
+                deleteReasonTextarea.value = '';
+                deleteReasonModal.classList.remove('hidden');
+                deleteReasonModal.classList.add('is-active');
+            }
+
+            if (editViolationBtn && loggedInUserType === 'admin') {
+                const studentId = editViolationBtn.dataset.studentId;
+                const violationIndex = parseInt(editViolationBtn.dataset.index);
+                const student = data.weeks[data.currentWeek].find(s => s.id === studentId);
+                const violation = student.demerits[violationIndex];
+
+                if (violation && !violation.isDeleted) {
+                    const date = new Date(violation.timestamp);
+                    editStudentIdInput.value = studentId;
+                    editViolationIndexInput.value = violationIndex;
+                    editDateInput.value = date.toISOString().split('T')[0];
+                    editTimeInput.value = date.toTimeString().slice(0, 5);
+                    editViolationModal.classList.remove('hidden');
+                    editViolationModal.classList.add('is-active');
+                }
+            }
+            
+            if (awardBonusBtn) {
+                const teamId = awardBonusBtn.dataset.teamId;
+                const leaderData = getTeamLeaderData(teamId, data.currentWeek);
+                const bonusPoints = parseInt(prompt("Nhập số điểm thưởng:", "2"));
+                if (!isNaN(bonusPoints)) {
+                    leaderData.bonus += bonusPoints;
+                    saveData(data);
+                    renderTeamLeaderManagement();
+                    showAlert(`Đã cộng ${bonusPoints} điểm thưởng cho ${teamId.toUpperCase()}.`);
+                }
+            }
+            
+            if (issueWarningBtn) {
+                const teamId = issueWarningBtn.dataset.teamId;
+                const leaderData = getTeamLeaderData(teamId, data.currentWeek);
+                const reason = prompt("Nhập lý do cảnh báo (ví dụ: 'Bỏ sót lỗi'):");
+                if (reason) {
+                    leaderData.warnings.push(reason);
+                    saveData(data);
+                    renderTeamLeaderManagement();
+                    showAlert(`Đã gửi cảnh báo đến ${teamId.toUpperCase()}.`);
+                }
+            }
+        });
+        
+        deleteReasonForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const studentId = deleteStudentIdInput.value;
+            const violationIndex = parseInt(deleteViolationIndexInput.value);
+            const reason = deleteReasonTextarea.value.trim();
+            
+            if (reason) {
+                await softDeleteViolation(studentId, violationIndex, reason);
+                deleteReasonModal.classList.add('hidden');
+            } else {
+                showAlert("Vui lòng nhập lý do xóa lỗi.");
+            }
+        });
+
+        changeTeamForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const studentId = studentIdChangeTeam.value;
+            const newTeam = newTeamSelect.value;
+            const studentToChange = data.weeks[data.currentWeek].find(s => s.id === studentId);
+
+            if (studentToChange) {
+                studentToChange.team = newTeam;
+                await saveData(data);
+                showAlert(`Đã đổi tổ thành công cho học sinh ${studentToChange.name} sang tổ ${newTeam.toUpperCase()}.`);
+                renderApp();
+                renderTeacherDashboard();
+                changeTeamModal.classList.add('hidden');
+            }
+        });
+        
+        createNewWeekBtn.addEventListener('click', async () => {
+            const lastWeekStudents = data.weeks[data.currentWeek] || initialStudents;
+            const newWeekNumber = data.currentWeek + 1;
+            
+            const newWeekStudents = lastWeekStudents.map(s => ({
+                id: s.id, name: s.name, team: s.team, score: 100, demerits: []
+            }));
+            
+            data.weeks[newWeekNumber] = newWeekStudents;
+            data.currentWeek = newWeekNumber;
+            
+            await saveData(data);
+            showAlert(`Đã tạo tuần mới thành công! Tuần ${newWeekNumber} đã bắt đầu.`);
+            renderApp();
+            teacherDashboardModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        });
+
+        monthlyConductModal.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-monthly-conduct-btn')) {
+                const studentId = e.target.dataset.studentId;
+                if (studentId && data.monthlyConduct[studentId]) {
+                    if (confirm('Bạn có chắc chắn muốn xóa hạnh kiểm tháng của học sinh này để xét lại không?')) {
+                        delete data.monthlyConduct[studentId];
+                        await saveData(data);
+                        showAlert('Đã xóa hạnh kiểm tháng. Bây giờ bạn có thể xét lại.');
+                        renderMonthlyConductList();
+                        renderApp();
+                    }
+                }
+            }
+        });
+
+        monthlyConductList.addEventListener('change', async (e) => {
+            if (e.target.classList.contains('set-monthly-conduct-select')) {
+                const studentId = e.target.dataset.studentId;
+                const conductValue = e.target.value;
+                if (conductValue) {
+                    const student = Object.values(data.weeks).flat().find(s => s.id === studentId);
+                    if (!student) return;
+
+                    const weeklyScores = Object.keys(data.weeks).map(week => {
+                         const studentData = data.weeks[week].find(s => s.id === studentId);
+                         return studentData ? studentData.score : null;
+                    }).filter(score => score !== null);
+                    
+                    const avgScore = weeklyScores.length > 0 ? weeklyScores.reduce((sum, score) => sum + score, 0) / weeklyScores.length : null;
+
+                    data.monthlyConduct[studentId] = { conduct: conductValue, avgScore: avgScore };
+                    await saveData(data);
+                    showAlert(`Đã xét hạnh kiểm tháng cho học sinh ${student.name} là "${conductValue}".`);
+                    renderApp();
+                    renderMonthlyConductList();
+                }
+            }
+        });
+
+        toggleTeacherDashboardBtn.addEventListener('click', () => {
+            if (teacherDashboardModal.classList.contains('hidden')) {
+                renderTeacherDashboard();
+                teacherDashboardModal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            } else {
+                teacherDashboardModal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        });
+
+        clearTodayViolationsBtn.addEventListener('click', async () => {
+            if (!confirm('Bạn có chắc chắn muốn xóa TẤT CẢ lỗi vi phạm trong ngày hôm nay không? Hành động này sẽ được ghi lại.')) {
+                return;
+            }
+
+            const students = data.weeks[data.currentWeek] || [];
+            let changesMade = false;
+            const reason = "Xóa hàng loạt bởi Admin";
+
+            students.forEach(student => {
+                student.demerits.forEach(demerit => {
+                    if (isToday(demerit.timestamp) && !demerit.isDeleted) {
+                        changesMade = true;
+                        demerit.isDeleted = true;
+                        demerit.deletedBy = loggedInUser;
+                        demerit.deletionTimestamp = new Date().toISOString();
+                        demerit.deletionReason = reason;
+                        student.score -= demerit.points;
+                    }
+                });
+            });
+
+            if (changesMade) {
+                await saveData(data);
+                showAlert('Đã xóa tất cả các lỗi vi phạm trong ngày.');
+                renderApp();
+                if (loggedInUserType === 'teacher' || loggedInUserType === 'admin') {
+                    renderTeacherDashboard();
+                }
+            } else {
+                showAlert('Không có lỗi nào trong ngày hôm nay để xóa.');
+            }
+        });
+    </script>
+</body>
+</html>
