@@ -512,7 +512,29 @@
             <button id="close-alert-modal-btn" class="mt-4 ripple bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">Đóng</button>
         </div>
     </div>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBw-z3LcKNCQLrzJeNsPf73SrCjemjgSTE",
+    authDomain: "d9-902ab.firebaseapp.com",
+    projectId: "d9-902ab",
+    storageBucket: "d9-902ab.firebasestorage.app",
+    messagingSenderId: "313463134110",
+    appId: "1:313463134110:web:a2d79097cad2ccdfc3288f",
+    measurementId: "G-G1PVZHR1MD"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
     <script>
         // API key và Bin ID của bạn trên jsonbin.io
         let API_KEY = '$2a$10$6pQQ0LxQ2CLpXaDR8bGRAe9/5S82j4iRaYIOZrkHqF.B2aTbi4Mea';
@@ -1754,3 +1776,4 @@
 </body>
 
 </html>
+
